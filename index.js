@@ -15,8 +15,6 @@ dns.setServers(['8.8.8.8', '8.8.4.4']);
 // smartUserDB
 // 74i2xM1wFgFlW0UH
 
-const uri = "mongodb+srv://simpleDBuser:74i2xM1wFgFlW0UH@cluster0.cej6qpt.mongodb.net/?appName=Cluster0";
-
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.cej6qpt.mongodb.net/?appName=Cluster0`
 
 // Create a MongoClient with a MongoClientOptions object to set the Stable API version
