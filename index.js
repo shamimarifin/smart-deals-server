@@ -12,8 +12,18 @@ app.use(cors())
 app.use(express.json())
 
 dns.setServers(['8.8.8.8', '8.8.4.4']);
-// smartUserDB
-// 74i2xM1wFgFlW0UH
+
+const logger = (req,res,next) => {
+    console.log('logging Information')
+
+    next()
+}
+
+const verifyFirebaseToken = (req,res,next) => {
+    console.log('in the middlefire', req.headers.authorization)
+
+    next()
+}
 
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.cej6qpt.mongodb.net/?appName=Cluster0`
 
@@ -125,8 +135,8 @@ async function run() {
         })
 
         // Bids Related Api
-        app.get('/bids', async (req, res) => {
-
+        app.get('/bids',logger,verifyFirebaseToken, async (req, res) => {
+            // console.log('headers', req.headers)
             const email = req.query.email;
             const query = {}
 
