@@ -2,27 +2,59 @@ const express = require('express');
 const cors = require('cors');
 const app = express();
 const dns = require('dns');
-require('dotenv').config()
-const port = process.env.PORT || 3000
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
-const e = require('express');
-console.log(process.env)
+require('dotenv').config()
+const admin = require("firebase-admin");
+const serviceAccount = require("./smart-deals-adminsdk.json");
+const { getAuth } = require('firebase-admin/auth');
+const port = process.env.PORT || 3000
+
+
+admin.initializeApp({
+  credential: admin.cert(serviceAccount)
+});
+
+
 // Middleware
 app.use(cors())
 app.use(express.json())
-
 dns.setServers(['8.8.8.8', '8.8.4.4']);
+
+
 
 const logger = (req,res,next) => {
     console.log('logging Information')
-
     next()
 }
 
-const verifyFirebaseToken = (req,res,next) => {
+const verifyFirebaseToken = async(req,res,next) => {
     console.log('in the middlefire', req.headers.authorization)
 
-    next()
+    if(!req.headers.authorization){
+        // do not allow
+        return res.status(401).send({message : 'unauthorize access'})
+    }
+
+    const token = req.headers.authorization.split(' ')[1]
+
+    if(!token){
+        // do not allow to go
+        return res.status(401).send({message : 'unauthorize access'})
+    }
+
+    try{
+       const userInfo =  await getAuth().verifyIdToken(token)
+  
+       console.log("This is user",userInfo)
+        next()
+
+    }catch{
+        console.log('Invalid Login')
+        return res.status(401).send({message : 'unauthorize access'})
+    }
+
+
+   
 }
 
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.cej6qpt.mongodb.net/?appName=Cluster0`
