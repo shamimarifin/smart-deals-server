@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const app = express();
 const dns = require('dns');
+const jwt = require('jsonwebtoken');
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 require('dotenv').config()
 const admin = require("firebase-admin");
@@ -44,7 +45,7 @@ const verifyFirebaseToken = async(req,res,next) => {
 
     try{
        const userInfo =  await getAuth().verifyIdToken(token)
-  
+       req.token_email = userInfo.email
        console.log("This is user",userInfo)
         next()
 
@@ -98,9 +99,17 @@ async function run() {
 
 
         })
+        
+
+        // JWT related apis
+        app.post('/getToken', (req,res)=> {
+            const loggedUser = req.body;
+            const token = jwt.sign(loggedUser, process.env.JWT_SECRET, { expiresIn: '1h' })
+
+            res.send({token: token})
+        })
 
         // Product APIs
-
         app.post('/products', async (req, res) => {
             const newProduct = req.body;
             const result = await productCollection.insertOne(newProduct)
@@ -173,6 +182,9 @@ async function run() {
             const query = {}
 
             if (email) {
+                if(email !== req.token_email){
+                    return res.status(403).send({message:'forbiden access'})
+                }
                 query.buyer_email = email
             }
 
@@ -190,7 +202,7 @@ async function run() {
             res.send(result)
         })
 
-        app.get('/products/bids/:productId' , async(req, res)=> {
+        app.get('/products/bids/:productId' , verifyFirebaseToken, async(req, res)=> {
             const productId = req.params.productId
             const query = {product : productId}
             console.log('Product query', query)
