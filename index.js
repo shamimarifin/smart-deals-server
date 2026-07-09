@@ -12,7 +12,7 @@ const port = process.env.PORT || 3000
 
 
 admin.initializeApp({
-  credential: admin.cert(serviceAccount)
+    credential: admin.cert(serviceAccount)
 });
 
 
@@ -21,41 +21,64 @@ app.use(cors())
 app.use(express.json())
 dns.setServers(['8.8.8.8', '8.8.4.4']);
 
-
-
-const logger = (req,res,next) => {
+const logger = (req, res, next) => {
     console.log('logging Information')
     next()
 }
 
-const verifyFirebaseToken = async(req,res,next) => {
+const verifyFirebaseToken = async (req, res, next) => {
     console.log('in the middlefire', req.headers.authorization)
 
-    if(!req.headers.authorization){
+    if (!req.headers.authorization) {
         // do not allow
-        return res.status(401).send({message : 'unauthorize access'})
+        return res.status(401).send({ message: 'unauthorize access' })
     }
 
     const token = req.headers.authorization.split(' ')[1]
 
-    if(!token){
+    if (!token) {
         // do not allow to go
-        return res.status(401).send({message : 'unauthorize access'})
+        return res.status(401).send({ message: 'unauthorize access' })
     }
 
-    try{
-       const userInfo =  await getAuth().verifyIdToken(token)
-       req.token_email = userInfo.email
-       console.log("This is user",userInfo)
+    try {
+        const userInfo = await getAuth().verifyIdToken(token)
+        req.token_email = userInfo.email
+        console.log("This is user", userInfo)
         next()
 
-    }catch{
+    } catch {
         console.log('Invalid Login')
-        return res.status(401).send({message : 'unauthorize access'})
+        return res.status(401).send({ message: 'unauthorize access' })
     }
 
+}
 
-   
+const verifyJWTToken = (req, res , next) => {
+    console.log('in middleware', req.headers)
+
+    console.log('headers', req.headers)
+
+    const authorization = req.headers.authorization
+    if (!authorization) {
+        return res.status(401).send({ message: "unauthorized access" })
+    }
+
+    const token = authorization.split(' ')[1]
+    if (!token) {
+        return res.status(401).send({ message: "unauthorized access" })
+    }
+
+    jwt.verify(token, process.env.JWT_SECRET, (err, decoded) => {
+        if (err) {
+            return res.status(401).send({ message: "unauthorized access" })
+        }
+
+        // Put on the right plach
+        next()
+    })
+
+
 }
 
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.cej6qpt.mongodb.net/?appName=Cluster0`
@@ -81,7 +104,7 @@ async function run() {
         const productCollection = db.collection('products')
         const bidsCollection = db.collection('bids')
         const userCollection = db.collection('users')
-        
+
 
         // User  related api 
         app.post('/users', async (req, res) => {
@@ -92,21 +115,21 @@ async function run() {
 
             if (existingUser) {
                 res.send('User already exist')
-            }else {
+            } else {
                 const result = await userCollection.insertOne(newUser)
                 res.send(result)
             }
 
 
         })
-        
+
 
         // JWT related apis
-        app.post('/getToken', (req,res)=> {
+        app.post('/getToken', (req, res) => {
             const loggedUser = req.body;
             const token = jwt.sign(loggedUser, process.env.JWT_SECRET, { expiresIn: '1h' })
 
-            res.send({token: token})
+            res.send({ token: token })
         })
 
         // Product APIs
@@ -134,8 +157,8 @@ async function run() {
             res.send(result)
         })
 
-        app.get('/latest-products', async(req,res)=> {
-            const cursor = productCollection.find().sort({created_at: -1}).limit(6)
+        app.get('/latest-products', async (req, res) => {
+            const cursor = productCollection.find().sort({ created_at: -1 }).limit(6)
             const result = await cursor.toArray()
 
             res.send(result)
@@ -175,16 +198,10 @@ async function run() {
             res.send(result)
         })
 
-        // Bids Related Api
-        app.get('/bids',logger,verifyFirebaseToken, async (req, res) => {
-            // console.log('headers', req.headers)
+        app.get('/bids', verifyJWTToken, async (req, res) => {
             const email = req.query.email;
             const query = {}
-
             if (email) {
-                if(email !== req.token_email){
-                    return res.status(403).send({message:'forbiden access'})
-                }
                 query.buyer_email = email
             }
 
@@ -194,6 +211,25 @@ async function run() {
             res.send(result)
         })
 
+        // Bids Related Api with firebase token verify
+        // app.get('/bids',logger,verifyFirebaseToken, async (req, res) => {
+        //     // console.log('headers', req.headers)
+        //     const email = req.query.email;
+        //     const query = {}
+
+        //     if (email) {
+        //         if(email !== req.token_email){
+        //             return res.status(403).send({message:'forbiden access'})
+        //         }
+        //         query.buyer_email = email
+        //     }
+
+        //     const cursor = bidsCollection.find(query)
+        //     const result = await cursor.toArray()
+
+        //     res.send(result)
+        // })
+
         app.get('/bids/:id', async (req, res) => {
             const id = req.params.id
             const query = { _id: new ObjectId(id) }
@@ -202,11 +238,11 @@ async function run() {
             res.send(result)
         })
 
-        app.get('/products/bids/:productId' , verifyFirebaseToken, async(req, res)=> {
+        app.get('/products/bids/:productId', verifyFirebaseToken, async (req, res) => {
             const productId = req.params.productId
-            const query = {product : productId}
+            const query = { product: productId }
             console.log('Product query', query)
-            const cursor = bidsCollection.find(query).sort({bid_price: -1})
+            const cursor = bidsCollection.find(query).sort({ bid_price: -1 })
             const result = await cursor.toArray()
 
             res.send(result)
