@@ -26,33 +26,33 @@ const logger = (req, res, next) => {
     next()
 }
 
-const verifyFirebaseToken = async (req, res, next) => {
-    console.log('in the middlefire', req.headers.authorization)
+// const verifyFirebaseToken = async (req, res, next) => {
+//     console.log('in the middlefire', req.headers.authorization)
 
-    if (!req.headers.authorization) {
-        // do not allow
-        return res.status(401).send({ message: 'unauthorize access' })
-    }
+//     if (!req.headers.authorization) {
+//         // do not allow
+//         return res.status(401).send({ message: 'unauthorize access' })
+//     }
 
-    const token = req.headers.authorization.split(' ')[1]
+//     const token = req.headers.authorization.split(' ')[1]
 
-    if (!token) {
-        // do not allow to go
-        return res.status(401).send({ message: 'unauthorize access' })
-    }
+//     if (!token) {
+//         // do not allow to go
+//         return res.status(401).send({ message: 'unauthorize access' })
+//     }
 
-    try {
-        const userInfo = await getAuth().verifyIdToken(token)
-        req.token_email = userInfo.email
-        console.log("This is user", userInfo)
-        next()
+//     try {
+//         const userInfo = await getAuth().verifyIdToken(token)
+//         req.token_email = userInfo.email
+//         console.log("This is user", userInfo)
+//         next()
 
-    } catch {
-        console.log('Invalid Login')
-        return res.status(401).send({ message: 'unauthorize access' })
-    }
+//     } catch {
+//         console.log('Invalid Login')
+//         return res.status(401).send({ message: 'unauthorize access' })
+//     }
 
-}
+// }
 
 const verifyJWTToken = (req, res , next) => {
     console.log('in middleware', req.headers)
@@ -73,6 +73,9 @@ const verifyJWTToken = (req, res , next) => {
         if (err) {
             return res.status(401).send({ message: "unauthorized access" })
         }
+
+        console.log('after decoded', decoded)
+        req.token_email = decoded.email
 
         // Put on the right plach
         next()
@@ -203,6 +206,10 @@ async function run() {
             const query = {}
             if (email) {
                 query.buyer_email = email
+            }
+
+            if(email !== req.token_email){
+                return res.status(403).send({message : 'forbidden access'})
             }
 
             const cursor = bidsCollection.find(query)
